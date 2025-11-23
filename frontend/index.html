@@ -1,7 +1,7 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-    <meta charset="UTF-8">
+   <meta name="viewport" content="width=device-width, initial-scale=1">
     <title>Notes App</title>
     <style>
         body { font-family: Arial; padding: 20px; max-width: 600px; margin: auto; }
@@ -23,7 +23,7 @@
 <div id="notes"></div>
 
 <script>
-    const API = "http://notes-api.notes.svc.cluster.local:3000/notes";
+    const API = "NOTES_API_URL/notes"; 
  // ⚠️ sera remplacé en production
 
     async function loadNotes() {
@@ -65,6 +65,7 @@
 
     loadNotes();
 </script>
+
 
 </body>
 </html>
