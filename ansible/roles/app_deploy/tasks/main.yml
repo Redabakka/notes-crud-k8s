@@ -1,0 +1,33 @@
+---
+- name: Créer le dossier Terraform pour l'application
+  file:
+    path: "/home/{{ ansible_user }}/notesapp-terraform"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Déployer providers.tf
+  copy:
+    src: "{{ playbook_dir }}/../notesapp-terraform/providers.tf"
+    dest: "/home/{{ ansible_user }}/notesapp-terraform/providers.tf"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Déployer app.tf (namespace + deployments + services + ingress)
+  copy:
+    src: "{{ playbook_dir }}/../notesapp-terraform/app.tf"
+    dest: "/home/{{ ansible_user }}/notesapp-terraform/app.tf"
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+
+- name: Terraform init
+  become: false
+  args:
+    chdir: "/home/{{ ansible_user }}/notesapp-terraform"
+  command: terraform init
+
+- name: Terraform apply
+  become: false
+  args:
+    chdir: "/home/{{ ansible_user }}/notesapp-terraform"
+  command: terraform apply -auto-approve

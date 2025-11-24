@@ -8,5 +8,3 @@ COPY index.html /usr/share/nginx/html/index.html
 RUN sed -i "s|NOTES_API_URL|$API_URL|g" /usr/share/nginx/html/index.html
 
 EXPOSE 80
-
-

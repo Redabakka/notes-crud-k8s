@@ -1,0 +1,95 @@
+---
+
+
+- name: Attendre que l'API Kubernetes réponde
+  become: false
+  command: kubectl get nodes
+  register: kube_api
+  retries: 20
+  delay: 6
+  until: kube_api.rc == 0
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+- name: Appliquer les manifests MetalLB (namespace + CRD + contrôleur)
+  become: false
+  command: kubectl apply -f https://raw.githubusercontent.com/metallb/metallb/v0.14.5/config/manifests/metallb-native.yaml
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+- name: Attendre que les pods MetalLB soient en Running
+  become: false
+  command: kubectl get pods -n metallb-system
+  register: metallb_pods
+  retries: 30
+  delay: 10
+  until: "'Running' in metallb_pods.stdout"
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+- name: Créer la config MetalLB (pool d'IP)
+  become: false
+  copy:
+    dest: "/home/{{ ansible_user }}/metallb-config.yaml"
+    content: |
+      apiVersion: metallb.io/v1beta1
+      kind: IPAddressPool
+      metadata:
+        name: default-pool
+        namespace: metallb-system
+      spec:
+        addresses:
+          - 192.168.64.50-192.168.64.60
+      ---
+      apiVersion: metallb.io/v1beta1
+      kind: L2Advertisement
+      metadata:
+        name: default-advert
+        namespace: metallb-system
+      spec:
+        ipAddressPools:
+          - default-pool
+
+- name: Appliquer la config MetalLB (avec retries le temps que le webhook soit prêt)
+  become: false
+  command: kubectl apply -f "/home/{{ ansible_user }}/metallb-config.yaml"
+  register: metallb_cfg
+  retries: 10
+  delay: 10
+  until: metallb_cfg.rc == 0
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+- name: Ajouter le repo Helm ingress-nginx
+  become: false
+  command: helm repo add ingress-nginx https://kubernetes.github.io/ingress-nginx
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+- name: Mettre à jour les charts Helm
+  become: false
+  command: helm repo update
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+- name: Installer ingress-nginx
+  become: false
+  command: >
+    helm upgrade --install ingress-nginx ingress-nginx/ingress-nginx
+    --namespace ingress-nginx --create-namespace
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+- name: Attendre que le service ingress-nginx ait une IP
+  become: false
+  command: kubectl get svc ingress-nginx-controller -n ingress-nginx -o jsonpath='{.status.loadBalancer.ingress[0].ip}'
+  register: ingress_ip
+  retries: 30
+  delay: 10
+  until: ingress_ip.stdout != ""
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"
+
+- name: Afficher l'IP du load balancer ingress-nginx
+  debug:
+    msg: "Ingress IP: {{ ingress_ip.stdout }}"

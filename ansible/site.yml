@@ -1,0 +1,12 @@
+---
+- name: notes-vm
+  hosts: notes-vm
+  become: true
+
+  roles:
+    - common
+    - docker
+    - kubectl_minikube
+    - terraform_helm
+    - metallb_ingress
+    - app_deploy

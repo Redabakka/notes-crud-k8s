@@ -1,0 +1,58 @@
+---
+- name: Installer les dépendances pour Kubernetes / Minikube (driver docker)
+  apt:
+    name:
+      - conntrack
+      - socat
+      - ebtables
+      - iptables
+    state: present
+    update_cache: yes
+
+- name: Déterminer l'architecture pour les binaires
+  set_fact:
+    kubectl_arch: "{{ 'arm64' if ansible_facts.architecture in ['aarch64', 'arm64'] else 'amd64' }}"
+
+- name: Vérifier si kubectl existe déjà
+  stat:
+    path: /usr/local/bin/kubectl
+  register: kubectl_bin
+
+- name: Télécharger kubectl
+  get_url:
+    url: "https://dl.k8s.io/release/v1.30.0/bin/linux/{{ kubectl_arch }}/kubectl"
+    dest: /usr/local/bin/kubectl
+    mode: '0755'
+  when: not kubectl_bin.stat.exists
+
+- name: Vérifier si Minikube existe déjà
+  stat:
+    path: /usr/local/bin/minikube
+  register: minikube_bin
+
+- name: Télécharger Minikube
+  get_url:
+    url: "https://storage.googleapis.com/minikube/releases/latest/minikube-linux-{{ kubectl_arch }}"
+    dest: /usr/local/bin/minikube
+    mode: '0755'
+  when: not minikube_bin.stat.exists
+
+- name: Créer les dossiers .kube et .minikube pour l'utilisateur
+  file:
+    path: "/home/{{ ansible_user }}/{{ item }}"
+    state: directory
+    owner: "{{ ansible_user }}"
+    group: "{{ ansible_user }}"
+    mode: "0755"
+  loop:
+    - .kube
+    - .minikube
+
+- name: Démarrer Minikube avec le driver docker en tant qu'utilisateur normal
+  become: false
+  command: >
+    minikube start
+    --driver=docker
+    --kubernetes-version=v1.30.0
+  environment:
+    KUBECONFIG: "/home/{{ ansible_user }}/.kube/config"

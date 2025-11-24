@@ -1,0 +1,69 @@
+---
+- name: Installer dépendances pour Terraform & Helm
+  apt:
+    name:
+      - unzip
+      - curl
+    state: present
+    update_cache: yes
+
+- name: Déterminer arch pour les binaires (terraform/helm)
+  set_fact:
+    tf_arch: "{{ 'arm64' if ansible_facts.architecture in ['aarch64', 'arm64'] else 'amd64' }}"
+
+# Terraform
+- name: Télécharger Terraform binaire
+  get_url:
+    url: "https://releases.hashicorp.com/terraform/1.9.0/terraform_1.9.0_linux_{{ tf_arch }}.zip"
+    dest: /tmp/terraform.zip
+  register: get_terraform
+  until: get_terraform is succeeded
+  retries: 3
+  delay: 5
+
+- name: Extraire Terraform dans /usr/local/bin
+  unarchive:
+    src: /tmp/terraform.zip
+    dest: /usr/local/bin
+    remote_src: yes
+    mode: '0755'
+
+# Helm
+- name: Télécharger Helm
+  get_url:
+    url: "https://get.helm.sh/helm-v3.14.0-linux-{{ tf_arch }}.tar.gz"
+    dest: /tmp/helm.tar.gz
+  register: get_helm
+  until: get_helm is succeeded
+  retries: 3
+  delay: 5
+
+- name: Extraire Helm
+  unarchive:
+    src: /tmp/helm.tar.gz
+    dest: /tmp/helm
+    remote_src: yes
+
+- name: Déplacer Helm dans /usr/local/bin
+  copy:
+    src: "/tmp/helm/linux-{{ tf_arch }}/helm"
+    dest: /usr/local/bin/helm
+    mode: '0755'
+
+- name: Vérifier Terraform
+  command: terraform version
+  register: tf_version
+  changed_when: false
+
+- name: Afficher version Terraform
+  debug:
+    msg: "{{ tf_version.stdout }}"
+
+- name: Vérifier Helm
+  command: helm version
+  register: helm_version
+  changed_when: false
+
+- name: Afficher version Helm
+  debug:
+    msg: "{{ helm_version.stdout }}"

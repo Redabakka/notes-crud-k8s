@@ -1,0 +1,17 @@
+---
+- name: Mettre à jour la liste des paquets
+  apt:
+    update_cache: yes
+    cache_valid_time: 3600
+
+- name: Installer les paquets de base
+  apt:
+    name:
+      - curl
+      - wget
+      - git
+      - ca-certificates
+      - apt-transport-https
+      - gnupg
+      - software-properties-common
+    state: present
